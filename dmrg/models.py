@@ -110,7 +110,8 @@ class SchwingerModel:
     which leaves the non-local Coulomb term.
 
     To handle that term blockwise:
-      * a left block (sites 0..l-1) owns links 0..l-1 and carries Qtot = sum_k Q_k + theta/2pi;
+      * a left block (sites 0..l-1) owns links 0..l-1 and carries Qtot = sum_k Q_k + theta/2pi
+        and, separately, Qtot^2 (needed exactly once the basis is truncated);
       * a right block (sites N-r..N-1) owns its r-1 internal links and carries
         P = sum over its links n of the partial charge sum p_n (counted from its left end),
         so that with charge Qtot to its left its Coulomb energy is
@@ -142,7 +143,8 @@ class SchwingerModel:
         if side == "left":     # site 0, parity +1; owns link 0
             s = self._site(+1)
             Qtot = s["Q"] + self.theta / (2 * np.pi) * _eye(2)
-            ops = {"H": s["mass"] + Qtot @ Qtot, "Qtot": Qtot, "S+": s["S+"]}
+            Qtot2 = Qtot @ Qtot
+            ops = {"H": s["mass"] + Qtot2, "Qtot": Qtot, "Qtot2": Qtot2, "S+": s["S+"]}
             return Block("left", 1, ops, self.q.copy())
         s = self._site(-1)     # last site of an even chain has parity -1; owns no links
         ops = {"H": s["mass"], "P": sp.csr_matrix((2, 2)), "S+": s["S+"]}
@@ -152,10 +154,15 @@ class SchwingerModel:
         I_b, I_s = _eye(block.dim), _eye(2)
         if side == "left":
             s = self._site((-1) ** block.size)                 # new site index = block.size
-            Qtot = _kron(block.ops["Qtot"], I_s) + _kron(I_b, s["Q"])
+            Q = s["Q"]
+            Qtot = _kron(block.ops["Qtot"], I_s) + _kron(I_b, Q)
+            # (Qtot + Q)^2 built from the block's own Qtot^2: after truncation to a basis that
+            # mixes charges, the square of the projected Qtot is not the projected square
+            Qtot2 = (_kron(block.ops["Qtot2"], I_s) + 2 * _kron(block.ops["Qtot"], Q)
+                     + _kron(I_b, Q @ Q))
             H = (_kron(block.ops["H"], I_s) + _kron(I_b, s["mass"])
-                 + self._hop(block.ops["S+"], s["S+"]) + Qtot @ Qtot)
-            ops = {"H": H, "Qtot": Qtot, "S+": _kron(I_b, s["S+"])}
+                 + self._hop(block.ops["S+"], s["S+"]) + Qtot2)
+            ops = {"H": H, "Qtot": Qtot, "Qtot2": Qtot2, "S+": _kron(I_b, s["S+"])}
             return Block("left", block.size + 1, ops, _combine(block.charges, self.q))
         s = self._site(-(-1) ** block.size)                    # distance block.size from right
         n = block.meta["links"]
@@ -168,7 +175,7 @@ class SchwingerModel:
         return Block("right", block.size + 1, ops, _combine(self.q, block.charges), {"links": n + 1})
 
     def superblock(self, L, R):
-        Qt = L.ops["Qtot"]
         H = _kron(L.ops["H"], _eye(R.dim)) + _kron(_eye(L.dim), R.ops["H"])
         H = H + self._hop(L.ops["S+"], R.ops["S+"])
-        return H + R.meta["links"] * _kron(Qt @ Qt, _eye(R.dim)) + 2 * _kron(Qt, R.ops["P"])
+        return (H + R.meta["links"] * _kron(L.ops["Qtot2"], _eye(R.dim))
+                + 2 * _kron(L.ops["Qtot"], R.ops["P"]))

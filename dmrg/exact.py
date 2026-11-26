@@ -76,7 +76,9 @@ def exact_ground_states(H, charges=None, target=None, k=1):
     if target is not None:
         idx = np.flatnonzero(charges == target)
         H = H[idx][:, idx]
-    if H.shape[0] <= 600:
+    if k > H.shape[0]:
+        raise ValueError(f"asked for {k} states but the space has only {H.shape[0]}")
+    if H.shape[0] <= 600 or k >= H.shape[0] - 1:
         return np.linalg.eigvalsh(H.toarray())[:k]
     return np.sort(eigsh(H, k=k, which="SA", return_eigenvectors=False))
 

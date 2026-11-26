@@ -2,8 +2,8 @@
 
 The density-matrix renormalization group (DMRG) written from scratch in Python, in White's
 original block formulation, with U(1) charge conservation. It is applied to quantum spin chains
-and to the massive Schwinger model, 1+1-dimensional QED on a lattice, and every result is
-checked against exact solutions.
+and to the massive Schwinger model, 1+1-dimensional QED on a lattice. A test suite checks it
+against exact solutions wherever those exist.
 
 ![The Schwinger model at its critical point](figures/schwinger_criticality.png)
 
@@ -18,12 +18,14 @@ $$[\text{left block}] \bullet \bullet [\text{right block}],$$
 finds the ground state of this *superblock* with Lanczos, and keeps only the $m$ most probable
 eigenstates of the reduced density matrix of each half. The discarded probability (the
 truncation error) controls the accuracy. The infinite-system algorithm grows the chain two sites
-at a time; the finite-system algorithm then sweeps back and forth at fixed length until the
-energy converges.
+at a time; the finite-system algorithm then sweeps back and forth at fixed length. Here it
+runs a fixed number of sweeps and reports the discarded weight as a diagnostic, so checking
+convergence in $m$ and in the number of sweeps is up to the user.
 
 When the Hamiltonian conserves a charge, here $S^z_{tot}$, every block state carries a charge
 label. The superblock can then be restricted to the target sector and the density matrix
-diagonalized sector by sector, which makes DMRG several times faster:
+diagonalized sector by sector. In the XY benchmark below this made growing a 100-site
+chain 1.7 to 11 times faster, more so at larger $m$:
 
 ![XY chain benchmark](figures/xy_benchmark.png)
 
@@ -31,9 +33,9 @@ diagonalized sector by sector, which makes DMRG several times faster:
 
 **XXZ chains** (`XXZChain`):
 $H = J\sum_i [\tfrac12(S^+_i S^-_{i+1} + S^-_i S^+_{i+1}) + \Delta S^z_i S^z_{i+1}]$ for any spin $S$.
-The XY model ($\Delta = 0$) maps to free fermions and gives an exact benchmark for any $N$; the
-Heisenberg model ($\Delta = 1$) has the Bethe-ansatz energy $1/4 - \ln 2$ per site; $S = 1$
-gives the Haldane chain.
+For spin ½ with $J = 1$ and no field, the XY model ($\Delta = 0$) maps to free fermions and
+gives an exact benchmark for any $N$, and the Heisenberg model ($\Delta = 1$) has the
+Bethe-ansatz energy $1/4 - \ln 2$ per site. $S = 1$ gives the Haldane chain.
 
 **The massive Schwinger model** (`SchwingerModel`). On a staggered lattice with the gauge field
 eliminated through Gauss's law, the model becomes a spin chain
@@ -49,7 +51,9 @@ $m_{\rm lat} = m - e^2a/8$ is the lattice mass of
 The Coulomb term is non-local: every link feels all the charge to its left. A block DMRG
 handles this by giving each block a few extra operators.
 
-- A **left block** carries its total charge $Q_{\rm tot} = \sum_k Q_k + \theta/2\pi$.
+- A **left block** carries its total charge $Q_{\rm tot} = \sum_k Q_k + \theta/2\pi$, and
+  $Q_{\rm tot}^2$ separately: once the basis is truncated, the square of the projected
+  $Q_{\rm tot}$ need not equal the projection of its square.
 - A **right block** with $n$ internal links carries $P = \sum_{\rm links} p_\ell$, the sum of
   its partial charge sums. With charge $Q_{\rm tot}$ to its left, its Coulomb energy is
   $nQ_{\rm tot}^2 + 2Q_{\rm tot}P + H_C^{\rm right}$, and adding a site with charge $Q$ updates
@@ -64,16 +68,16 @@ At $\theta = \pi$ the Schwinger model has a second-order phase transition in the
 universality class at a critical mass $m_c/e \approx 0.3336$. The figure at the top runs this
 code at $x = 10$, using the critical mass $m_c(x{=}10)/e = 0.33410$ computed with lattices of
 up to 3000 sites by [Arguello Cruz, Tarnopolsky & Xin](https://arxiv.org/abs/2412.01902).
-Two Ising signatures show up:
+Two finite-size trends are consistent with the Ising predictions:
 
 - **Entanglement.** At criticality the entanglement entropy grows logarithmically with the
   chord length, $S(\ell) = \frac{c}{6}\log[\frac{2N}{\pi}\sin\frac{\pi\ell}{N}] + \dots$, with
-  central charge $c = 1/2$. The estimator from their eq. (25) tends to $1/2$ at $m_c$ and to $0$
-  in the gapped phases on either side.
-- **Spectrum.** The ratio of the first two gaps in the zero-charge sector approaches the Ising
-  boundary-CFT value $\Delta_2/\Delta_1 = 3/2$.
+  central charge $c = 1/2$. The estimator from their eq. (25) gives 0.49 at $m_c$ for
+  $N = 80$, and falls towards $0$ in the gapped phases on either side.
+- **Spectrum.** The ratio of the first two gaps in the zero-charge sector rises towards the
+  Ising boundary-CFT value $\Delta_2/\Delta_1 = 3/2$, reaching 1.475 at $N = 60$.
 
-These are qualitative checks with $N \le 80$. The precision determination
+These are finite-size trends with $N \le 80$, not exact checks. The precision determination
 $m_c/e = 0.333561(4)$ is in the paper.
 
 ## Validation
@@ -82,11 +86,19 @@ $m_c/e = 0.333561(4)$ is in the paper.
 
 - **XY chain.** Matches free fermions for $N$ up to 40, and the error falls as $m$ grows.
 - **XXZ chains.** Spin-½ at $\Delta = 1$ and $0.5$, and spin-1, match exact diagonalization.
-- **Schwinger model.** Ground and excited energies, and the full entanglement profile
-  $S(\ell)$, match exact diagonalization for several $(x, \mu, \theta)$.
+- **Schwinger model.** Ground and excited energies, and the entanglement profile $S(\ell)$
+  for every cut, match exact diagonalization for several $(x, \mu, \theta)$. This includes
+  runs that truncate and target several states at once.
+- **Truncated blocks.** A Schwinger block rotated into a random basis that mixes charges, then
+  enlarged, equals the exact Hamiltonian projected into that basis. Without charge
+  conservation, the truncated energy stays above the exact one.
 - **Bulk energies.** The XY ($-1/\pi$) and Heisenberg ($1/4 - \ln 2$) energies per site are
   reproduced.
-- **Symmetry.** Restricting to a charge sector does not change the energy.
+- **Charge sectors.** Restricting to a sector does not change the energy. With a field, each
+  sector, and the unrestricted ground state outside $S^z = 0$, match exact diagonalization.
+  So does a sector that the shortest warm-up chains cannot reach.
+- **Input checks.** Odd lengths, zero sweeps, impossible charges, and asking for more states
+  than a sector holds all raise errors.
 
 ## Usage
 
@@ -100,8 +112,11 @@ print(r.energies[0] / 60)
 model = SchwingerModel.from_continuum(x=10.0, m_over_e=0.334, theta=np.pi)
 r = finite_dmrg(model, L=40, m=48, sweeps=3, num_states=3)       # lowest three Q = 0 states
 gaps = r.energies - r.energies[0]
-S = r.entropy_profile                                            # {cut l: S(l)}
+S = r.entropy_profile          # ground-state S(l) for every cut l = 1..39
 ```
+
+`target` sets the charge sector, in units of $2S^z_{\rm tot}$ (or $\sum Z$ for the Schwinger
+model); the default is 0. `use_symmetry=False` turns charge conservation off.
 
 ```
 dmrg/models.py    Block; XXZChain; SchwingerModel (with the blockwise Coulomb term)
