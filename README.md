@@ -1,4 +1,4 @@
-# dmrg-from-scratch
+# schwinger-dmrg
 
 The density-matrix renormalization group (DMRG) written from scratch in Python, in White's
 original block formulation, with U(1) charge conservation. It is applied to quantum spin chains
