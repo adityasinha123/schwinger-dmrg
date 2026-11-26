@@ -165,7 +165,7 @@ def fig_schwinger():
             label="slope c/6, c = 1/2")
     ax.set_xlabel(r"$\log\,[\frac{2N}{\pi}\sin(\pi\ell/N)]$")
     ax.set_ylabel(r"entanglement entropy $S(\ell)$")
-    ax.set_title(f"Entanglement across the chain (N = {N}, x = 10)")
+    ax.set_title(f"Entanglement profile (N = {N}, x = 10)")
     ax.legend(loc="upper left", fontsize=9)
 
     ax = axs[1]
@@ -177,18 +177,18 @@ def fig_schwinger():
     ax.set_xlim(0, None)
     ax.set_xlabel("1 / N")
     ax.set_ylabel("central-charge estimator")
-    ax.set_title("Only the critical mass stays at c = 1/2")
+    ax.set_title("Central-charge estimator")
     ax.legend(loc="upper left", fontsize=9)
 
     ax = axs[2]
-    Ns = sorted(int(k) for k in d["ratio"])
+    Ns = sorted(int(k) for k in d["ratio"] if int(k) >= 14)   # smaller lattices: lattice artefacts dominate
     ax.plot(1 / np.array(Ns), [d["ratio"][str(n)] for n in Ns], "o-", color=ORANGE)
     ax.axhline(1.5, color=INK, lw=1, ls=(0, (4, 3)))
-    ax.text(0.005, 1.505, r"Ising (++) boundary: $\Delta_2/\Delta_1 = 3/2$", fontsize=9)
+    ax.text(0.003, 1.493, r"Ising (++) boundary: $\Delta_2/\Delta_1 = 3/2$", fontsize=9)
     ax.set_xlim(0, None)
     ax.set_xlabel("1 / N")
     ax.set_ylabel(r"$(E_2 - E_0)/(E_1 - E_0)$")
-    ax.set_title(r"Gap ratio at $m_c$ approaches the Ising value")
+    ax.set_title(r"Gap ratio at $m_c$")
     save(fig, "schwinger_criticality.png")
 
 
